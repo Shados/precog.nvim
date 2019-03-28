@@ -1,0 +1,22 @@
+{
+  "name": "precog",
+  "author": "Alexei Robyn <shados@shados.net>",
+  "maintainer": "Alexei Robyn <shados@shados.net>",
+  "description": "A MoonScript + VimL implementation of autocompletion/prediction for Neovim",
+  "detailed": "A MoonScript + VimL implementation of autocompletion/prediction for Neovim",
+  "homepage": "https://github.com/Shados/precog.nvim",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/Shados/precog.nvim"
+  },
+  "dependencies": {
+    "earthshine": {
+      "type": "git",
+      "url": "git://github.com/Shados/earthshine"
+    },
+    "facade": {
+      "type": "git",
+      "url": "git://github.com/Shados/facade.nvim"
+    }
+  }
+}

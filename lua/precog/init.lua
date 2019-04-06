@@ -11,6 +11,9 @@ precog = {
   buffers_enabled = { },
   change_data = { },
   buffer_enable = function(self, buffer_handle)
+    if self.buffers_enabled[buffer_handle] then
+      return 
+    end
     vimw.b_set(buffer_handle, 'precog_enabled', true)
     local au_setup = [[      augroup precog
         au! * <buffer=@NR@>
@@ -19,12 +22,20 @@ precog = {
         au TextChangedI <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "TextChangedI")
         au TextChangedP <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "TextChangedP")
         au FileType <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "FileType")
+        au BufDelete <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "BufDelete")
       augroup END
       ]]
     au_setup = au_setup:gsub("@NR@", buffer_handle)
     vimw.exec(au_setup)
     self.buffers_enabled[buffer_handle] = true
     return self:setup_sources_for_buffer(buffer_handle)
+  end,
+  buffer_disable = function(self, buffer_handle)
+    if not (self.buffers_enabled[buffer_handle]) then
+      return 
+    end
+    self.buffers_enabled[buffer_handle] = nil
+    self.sources_for_buffer[buffer_handle] = nil
   end,
   handle_buffer_event = function(self, buffer_handle, event)
     local _exp_0 = event
@@ -43,6 +54,8 @@ precog = {
       end
     elseif "FileType" == _exp_0 then
       local _ = nil
+    elseif "BufDelete" == _exp_0 then
+      self:buffer_disable(buffer_handle)
     else
       print("nak")
     end

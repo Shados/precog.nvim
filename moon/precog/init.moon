@@ -30,6 +30,8 @@ precog =
 
   -- Module functions
   buffer_enable: (buffer_handle) =>
+    return if @buffers_enabled[buffer_handle]
+
     vimw.b_set buffer_handle, 'precog_enabled', true
     -- We need to hook some vim events to pick up text entry
     -- Could just use <buffer>, as that would work OK in this context, but
@@ -44,6 +46,7 @@ precog =
         au TextChangedI <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "TextChangedI")
         au TextChangedP <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "TextChangedP")
         au FileType <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "FileType")
+        au BufDelete <buffer=@NR@> lua precog:handle_buffer_event(@NR@, "BufDelete")
       augroup END
       ]]
     au_setup = au_setup\gsub "@NR@", buffer_handle
@@ -51,6 +54,12 @@ precog =
 
     @buffers_enabled[buffer_handle] = true
     @setup_sources_for_buffer buffer_handle
+
+  buffer_disable: (buffer_handle) =>
+    return unless @buffers_enabled[buffer_handle]
+
+    @buffers_enabled[buffer_handle] = nil
+    @sources_for_buffer[buffer_handle] = nil
 
   handle_buffer_event: (buffer_handle, event) =>
     switch event
@@ -79,6 +88,9 @@ precog =
         -- if @buffers_enabled[buffer_handle]
         --   @setup_sources_for_buffer buffer_handle
         nil
+
+      when "BufDelete"
+        @buffer_disable buffer_handle
 
       else
         -- TODO log this?

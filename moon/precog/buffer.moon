@@ -1,6 +1,7 @@
 -- TODO case-sensitivity?
 -- TODO allow for deleting words?
 -- TODO find a C or Rust regex/Unicode library with support for patterns using
+-- TODO use the '[ and '] marks to range-find changed text for minimal updates
 -- Unicode character classes, as well as string iteration and comparison by
 -- grapheme cluster, then use that to reimplement this via Lua bindings
 export precog
@@ -27,6 +28,7 @@ precog.buffer =
       --   InsertEnter: "lua precog.buffer:track_changes(@NR@)"
       --   InsertLeave: "lua precog.buffer:stop_tracking_changes(@NR@)"
       lua_init: "precog.buffer:full_update(_A)"
+      priority: 15
 
   predictor: (timer_id) =>
     change_data = precog.change_data[timer_id]

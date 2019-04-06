@@ -6,12 +6,14 @@
 export precog
 -- TODO broad logging?
 vimw = require "facade"
-inspect = require 'vendor.inspect'
-utils = require 'precog.utils'
+inspect = require "vendor.inspect"
+utils = require "precog.utils"
+table_ = require "earthshine.table"
 
 local *
 precog =
   -- Module defaults/initialization
+  sources: {}
   sources_for_buffer: {}
   -- Structure: @candidates[source][word] = true
   candidates: {}
@@ -167,17 +169,12 @@ precog =
   -- source will always be active
   -- events is optional
   get_sources_for_filetype: (filetype) =>
-    available_sources = vimw.g_get 'precog_sources', {}
     sources = {}
-    for name, source in pairs available_sources
-      if type(name) != "string"
-        -- Because of the hack re. empty dictionary type in the VimL<>Lua
-        -- conversions, we can end up with a non-string key
-        continue
+    for name, source in pairs @sources
       if blacklist = source['blacklist']
         if is_filetype_on_list filetype, blacklist
           continue
-      if whitelist = source['whitelist']
+      elseif whitelist = source['whitelist']
         if is_filetype_on_list filetype, whitelist
           sources[name] = source
         else
@@ -193,10 +190,8 @@ precog =
     @log_file\flush!
 
   register_source: (name, source) =>
-    sources = vimw.g_get 'precog_sources'
-    sources[name] = source
     @log "Registering source #{name}:\n#{inspect source}"
-    vimw.g_set 'precog_sources', sources
+    @sources[name] = source
 
   reset_predictions: () =>
     for source, _words in pairs @candidates
@@ -211,13 +206,26 @@ precog =
       prefix_word = (utils.get_last_word prediction_context.before_cursor) or ""
 
       candidates = @filtered_candidates prefix_word
-      -- TODO sort candidates by source-priority, then lexicographically (alphabetically, shortest-first)
+      table.sort candidates, ((a, b) -> @compare_candidates a, b)
+      candidates = @format_candidates candidates
       if #candidates > 0
         start_col = prediction_context.start_col or prediction_context.col
         vimw.fn 'complete', { start_col, candidates }
 
     @change_data[timer_id] = nil
     @complete_timer = nil
+
+  -- Sort candidates by source-priority, then lexicographically
+  compare_candidates: (cand_a, cand_b) =>
+    high_source_a = table_.max cand_a.sources, ((a, b) -> @compare_sources a, b)
+    high_source_b = table_.max cand_b.sources, ((a, b) -> @compare_sources a, b)
+    if @sources[high_source_a].priority == @sources[high_source_b].priority
+      return cand_a.word < cand_b.word
+    else
+      return @compare_sources high_source_a, high_source_b
+
+  compare_sources: (source_a, source_b) =>
+    return @sources[source_a].priority > @sources[source_b].priority
 
   stop_update: () =>
     if @complete_timer
@@ -235,10 +243,19 @@ precog =
         if context != @current_context
           words[word] = nil
         elseif not prefix_word or (word\sub 1, #prefix_word) == prefix_word
-          menu = filtered[word] or ""
-          menu ..= "[#{source}]"
-          filtered[word] = menu
-    return [{:word, :menu} for word, menu in pairs filtered]
+          sources = filtered[word] or {}
+          table.insert sources, source
+          table.insert filtered, {:word, :sources}
+    return filtered
+
+  format_candidates: (candidates) =>
+    formatted = {}
+    for idx, {:word, :sources} in ipairs candidates
+      menu = ""
+      for source in *sources
+        menu ..= "[#{source}]"
+      formatted[idx] = {:word, :menu}
+    return formatted
 
   add_candidates: (source, timer_id, new_candidates) =>
     -- We must throw away old candidates once the startcol has changed

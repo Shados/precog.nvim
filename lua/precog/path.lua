@@ -3,7 +3,6 @@ require('earthshine.string')
 local vimw = require('facade')
 local utils = require('precog.utils')
 local p = require('earthshine.path')
-local lfs = require('lfs')
 local inspect = require('inspect')
 local map_raw_to_escaped, map_escaped_to_raw
 precog.path = {
@@ -16,7 +15,8 @@ precog.path = {
   register = function(self)
     precog:log("path:register() called")
     return precog:register_source(self.source_name, {
-      predictor = "precog#sources#path#predictor"
+      predictor = "precog#sources#path#predictor",
+      priority = 5
     })
   end,
   predictor = function(self, timer_id)

@@ -12,7 +12,8 @@ precog.buffer = {
     precog:log("buffer:register() called!")
     return precog:register_source(self.source_name, {
       predictor = "precog#sources#buffer#predictor",
-      lua_init = "precog.buffer:full_update(_A)"
+      lua_init = "precog.buffer:full_update(_A)",
+      priority = 15
     })
   end,
   predictor = function(self, timer_id)

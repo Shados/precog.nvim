@@ -4,7 +4,6 @@ require 'earthshine.string'
 vimw = require 'facade'
 utils = require 'precog.utils'
 p = require 'earthshine.path'
-lfs = require 'lfs'
 inspect = require 'inspect'
 
 local *
@@ -20,6 +19,7 @@ precog.path =
     precog\log "path:register() called"
     precog\register_source @source_name,
       predictor: "precog#sources#path#predictor"
+      priority: 5
 
   predictor: (timer_id) =>
     change_data = precog.change_data[timer_id]

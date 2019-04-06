@@ -1,8 +1,10 @@
 local vimw = require("facade")
-local inspect = require('vendor.inspect')
-local utils = require('precog.utils')
+local inspect = require("vendor.inspect")
+local utils = require("precog.utils")
+local table_ = require("earthshine.table")
 local is_filetype_on_list
 precog = {
+  sources = { },
   sources_for_buffer = { },
   candidates = { },
   current_context = nil,
@@ -142,15 +144,10 @@ precog = {
     end
   end,
   get_sources_for_filetype = function(self, filetype)
-    local available_sources = vimw.g_get('precog_sources', { })
     local sources = { }
-    for name, source in pairs(available_sources) do
+    for name, source in pairs(self.sources) do
       local _continue_0 = false
       repeat
-        if type(name) ~= "string" then
-          _continue_0 = true
-          break
-        end
         do
           local blacklist = source['blacklist']
           if blacklist then
@@ -158,19 +155,20 @@ precog = {
               _continue_0 = true
               break
             end
-          end
-        end
-        do
-          local whitelist = source['whitelist']
-          if whitelist then
-            if is_filetype_on_list(filetype, whitelist) then
-              sources[name] = source
-            else
-              _continue_0 = true
-              break
-            end
           else
-            sources[name] = source
+            do
+              local whitelist = source['whitelist']
+              if whitelist then
+                if is_filetype_on_list(filetype, whitelist) then
+                  sources[name] = source
+                else
+                  _continue_0 = true
+                  break
+                end
+              else
+                sources[name] = source
+              end
+            end
           end
         end
         _continue_0 = true
@@ -189,10 +187,8 @@ precog = {
     return self.log_file:flush()
   end,
   register_source = function(self, name, source)
-    local sources = vimw.g_get('precog_sources')
-    sources[name] = source
     self:log("Registering source " .. tostring(name) .. ":\n" .. tostring(inspect(source)))
-    return vimw.g_set('precog_sources', sources)
+    self.sources[name] = source
   end,
   reset_predictions = function(self)
     for source, _words in pairs(self.candidates) do
@@ -206,6 +202,10 @@ precog = {
     if insert_mode and prediction_context == self.current_context then
       local prefix_word = (utils.get_last_word(prediction_context.before_cursor)) or ""
       local candidates = self:filtered_candidates(prefix_word)
+      table.sort(candidates, (function(a, b)
+        return self:compare_candidates(a, b)
+      end))
+      candidates = self:format_candidates(candidates)
       if #candidates > 0 then
         local start_col = prediction_context.start_col or prediction_context.col
         vimw.fn('complete', {
@@ -216,6 +216,22 @@ precog = {
     end
     self.change_data[timer_id] = nil
     self.complete_timer = nil
+  end,
+  compare_candidates = function(self, cand_a, cand_b)
+    local high_source_a = table_.max(cand_a.sources, (function(a, b)
+      return self:compare_sources(a, b)
+    end))
+    local high_source_b = table_.max(cand_b.sources, (function(a, b)
+      return self:compare_sources(a, b)
+    end))
+    if self.sources[high_source_a].priority == self.sources[high_source_b].priority then
+      return cand_a.word < cand_b.word
+    else
+      return self:compare_sources(high_source_a, high_source_b)
+    end
+  end,
+  compare_sources = function(self, source_a, source_b)
+    return self.sources[source_a].priority > self.sources[source_b].priority
   end,
   stop_update = function(self)
     if self.complete_timer then
@@ -233,22 +249,33 @@ precog = {
         if context ~= self.current_context then
           words[word] = nil
         elseif not prefix_word or (word:sub(1, #prefix_word)) == prefix_word then
-          local menu = filtered[word] or ""
-          menu = menu .. "[" .. tostring(source) .. "]"
-          filtered[word] = menu
+          local sources = filtered[word] or { }
+          table.insert(sources, source)
+          table.insert(filtered, {
+            word = word,
+            sources = sources
+          })
         end
       end
     end
-    local _accum_0 = { }
-    local _len_0 = 1
-    for word, menu in pairs(filtered) do
-      _accum_0[_len_0] = {
+    return filtered
+  end,
+  format_candidates = function(self, candidates)
+    local formatted = { }
+    for idx, _des_0 in ipairs(candidates) do
+      local word, sources
+      word, sources = _des_0.word, _des_0.sources
+      local menu = ""
+      for _index_0 = 1, #sources do
+        local source = sources[_index_0]
+        menu = menu .. "[" .. tostring(source) .. "]"
+      end
+      formatted[idx] = {
         word = word,
         menu = menu
       }
-      _len_0 = _len_0 + 1
     end
-    return _accum_0
+    return formatted
   end,
   add_candidates = function(self, source, timer_id, new_candidates)
     local candidate_context = self.change_data[timer_id]

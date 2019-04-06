@@ -3,7 +3,7 @@ require('earthshine.string')
 local vimw = require('facade')
 local utils = require('precog.utils')
 local p = require('earthshine.path')
-local inspect = require('inspect')
+local inspect = require('vendor.inspect')
 local map_raw_to_escaped, map_escaped_to_raw
 precog.path = {
   source_name = "path",

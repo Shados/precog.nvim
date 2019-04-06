@@ -4,7 +4,7 @@ require 'earthshine.string'
 vimw = require 'facade'
 utils = require 'precog.utils'
 p = require 'earthshine.path'
-inspect = require 'inspect'
+inspect = require 'vendor.inspect'
 
 local *
 
